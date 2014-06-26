@@ -1,9 +1,9 @@
-## http://www.pinkmuff.com/ code
 import os
 import re
 import sys
 import urllib
 import bottle
+import random
 import logging
 import datetime
 import pylibmc
@@ -54,7 +54,7 @@ def error404(error):
 def generateVideos(_regex = {},offset = 1,category = 'none'):
  i = 0
 
- _pages_key = _config['_memcachedPrefix'] + '_pages'
+ _pages_key = _config['_memcachedPrefix'] + '_pages_' + str(category)
  pages = _mc.get(_pages_key)
  if not pages:
   _debug("generateVideos(): memcached empty: " + str(_pages_key))
@@ -62,7 +62,7 @@ def generateVideos(_regex = {},offset = 1,category = 'none'):
   _mc.set(_pages_key,pages,_config['_memcachedPagesTimeout'])
 
  if offset > pages:
-  _debug("generateVideos(): supplied offset more than available pages.")
+  _debug("generateVideos(): supplied offset more than available pages.  offset = " + str(offset))
   bottle.redirect('/')
 
  if offset > 1:
@@ -85,8 +85,8 @@ def generateVideos(_regex = {},offset = 1,category = 'none'):
    metadata[i] = video
    i += 1
 
-  _mc.set(_metadata_key,metadata,_config['_memcachedVideosTimeout'])
-
+ _mc.set(_metadata_key,metadata,_config['_memcachedVideosTimeout'])
+ 
  return metadata,pages
 
 def templateVars():
@@ -114,6 +114,7 @@ def templateVars():
  _vars['_config']['page'] = 1
  _vars['_config']['uri_prefix'] = '/'
  _vars['_config']['active_category'] = 'Home'
+ _vars['_config']['_site_css'] = _config['_site_css']
  _path = bottle.request.path
  _vars['_config']['_path'] = _path
 
@@ -162,6 +163,8 @@ def showvideo(videoid,title):
  out['caption'] = out['title'].replace('%','').encode('utf-8').title()
  out['title'] = out['title'].replace('%','').encode('utf-8')
  out['tags'] = out['tags'].encode('utf-8').replace(';',' ')
+ out['tags'] = re.sub(r'[^\x00-\x7F]+',' ', out['tags'])
+ out['title'] = re.sub(r'[^\x00-\x7F]+',' ', out['title'])
  _vars = templateVars()
  return template(_config['video_template'],dict(out=out,_config=_vars['_config']))
 
@@ -213,6 +216,44 @@ def categoryPage(category,page):
 
  _vars = templateVars()
  _vars['_config']['page'] = page
+ _vars['_config']['uri_prefix'] = '/categories/' + str(category) + '/'
+ _vars['_config']['active_category'] = category
+ return template(_config['base_template'],dict(out=out,_config=_vars['_config']))
+
+@app.route('/categories/<category>/random')
+def randomCatPageMissingSlash():
+ if category in _config['_categories']:
+  uri = '/categories/' + category + '/random/'
+  _debug("randomCatPageMissingSlash(): redirecting to: " + str(uri))
+  bottle.redirect(uri)
+ else:
+  _debug("randomCatPageMissingSlash(): _config['_categories'][category] for " + str(category) + " failed.")
+  bottle.redirect('/')
+
+@app.route('/categories/<category>/random/')
+def randomCatPage(category):
+ out = dict()
+ _pages_key = _config['_memcachedPrefix'] + '_pages_' + str(category)
+ _pages = _mc.get(_pages_key)
+ if not _pages:
+  _rand = random.randint(0,100)
+ else:
+  _rand = random.randint(0,_pages) 
+ 
+ try:
+  c = _config["_categories"][category]
+  _regex = re.compile(c[1],re.IGNORECASE)
+  _debug("randomCatPage(): c = " + str(c))
+ except:
+  _debug("randomCatPage(): _config['_categories'][category] for " + str(category) + " failed.")
+  bottle.redirect('/')
+
+ _debug("randomCatPage(): category = " + str(category))
+ _filter = {c[0]:_regex}
+ out,pages = generateVideos(_filter,_rand,c[1])
+ _debug("randomCatPage(): out = " + str(out))
+
+ _vars = templateVars()
  _vars['_config']['uri_prefix'] = '/categories/' + str(category) + '/'
  _vars['_config']['active_category'] = category
  return template(_config['base_template'],dict(out=out,_config=_vars['_config']))
@@ -281,6 +322,24 @@ def page(page):
  _vars['_config']['page'] = page
  return template(_config['base_template'],dict(out=out,_config=_vars['_config']))
 
+@app.route('/random')
+def randomMissingSlash():
+ bottle.redirect('/random/')
+
+@app.route('/random/')
+def randomPage():
+ _pages_key = _config['_memcachedPrefix'] + '_pages_none'
+ _pages = _mc.get(_pages_key)
+ if not _pages:
+  _rand = random.randint(0,100)
+ else:
+  _rand = random.randint(0,_pages)
+ 
+ out,pages = generateVideos({},_rand)
+  
+ _vars = templateVars()
+ return template(_config['base_template'],dict(out=out,_config=_vars['_config']))
+ 
 @app.route('/')
 def home():
  out,pages = generateVideos()
