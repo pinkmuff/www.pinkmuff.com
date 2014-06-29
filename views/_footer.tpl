@@ -4,5 +4,8 @@
 <div class="container">
 {{!_config['footer_popunder']}}
 </div>
+<div class="container">
+{{!_config['marquee']}}
+</div>
 </body>
 </html>

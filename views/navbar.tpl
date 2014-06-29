@@ -20,6 +20,11 @@
 <li><a href="/categories/{{c}}/">{{v[2]}}</a></li>
 % end
 </ul>
+% if "/random/" in _config['_path']:
+<li><a href="{{_config['_path']}}">Random</a></li>
+% elif not "/video/" in _config['_path'] and not "/page/" in _config['_path']:
+<li><a href="{{_config['_path']}}random/">Random</a></li>
+% end
 </li>
 <li class="dropdown">
 <a href="#" class="dropdown-toggle" data-toggle="dropdown">Links <b class="caret"></b></a>

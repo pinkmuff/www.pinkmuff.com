@@ -14,7 +14,7 @@
 <link rel="canonical" href="http://{{_config['_site_title']}}{{_config['_path']}}" />
 <link rel="stylesheet" href="//{{_config['_staticHost']}}/css/bootstrap.min.css">
 <link rel="stylesheet" href="//{{_config['_staticHost']}}/css/bootstrap-theme.min.css">
-<link rel="stylesheet" href="//{{_config['_staticHost']}}/css/main.css">
+<link rel="stylesheet" href="//{{_config['_staticHost']}}/css/{{_config['_site_css']}}.css">
 <script>
   (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
   (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
