@@ -151,7 +151,7 @@ def generateVideos(_find = {},offset = 1,category = 'none'):
 
  _esr_key = _config['_memcachedPrefix'] + '_' + str(category) + '_skip_' + str(skip)
  if mobile: 
-  _metadata_key = _metadata_key + '_mobile'
+  _esr_key = _esr_key + '_mobile'
 
  _esr = _cache_get(_esr_key)
  if not _esr:
