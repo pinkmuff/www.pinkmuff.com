@@ -11,9 +11,10 @@
 <meta name='yandex-verification' content='{{_config['YANDEX_VERIFICATION']}}' />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
 <meta name="HandheldFriendly" content="true"/>
-<link rel="canonical" href="http://{{_config['_site_title']}}{{_config['_path']}}" />
-<link rel="stylesheet" href="//{{_config['_staticHost']}}/css/bootstrap.min.css">
-<link rel="stylesheet" href="//{{_config['_staticHost']}}/css/bootstrap-theme.min.css">
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
+<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+<!--<link href='http://fonts.googleapis.com/css?family=Lato:700' rel='stylesheet' type='text/css'>-->
 <link rel="stylesheet" href="//{{_config['_staticHost']}}/css/{{_config['_site_css']}}.css">
 <script>
   (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
@@ -24,7 +25,7 @@
   ga('create', '{{_config['_ga_code']}}', '{{_config['_ga_site']}}');
   ga('send', 'pageview');
 </script>
-<script src="//{{_config['_staticHost']}}/js/jquery-1.11.0.min.js"></script>
-<script src="//{{_config['_staticHost']}}/js/bootstrap.min.js"></script>
+<script src="//code.jquery.com/jquery-1.11.0.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
 </head>
 <body role="document">

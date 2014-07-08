@@ -5,8 +5,9 @@ import urllib
 import bottle
 import random
 import logging
-import datetime
 import pylibmc
+import datetime
+from elasticsearch import Elasticsearch
 from bson.objectid import ObjectId
 from pymongo import MongoClient
 from bottle import template
@@ -34,42 +35,46 @@ loadConfig()
 app = application = bottle.Bottle()
 _loglevel = logging.DEBUG
 _logfile = _docroot + '/' + _config['_appLogFileName']
-logging.basicConfig(filename=_logfile,level=_loglevel)
+_logformat = '%(asctime)-15s %(levelname)s %(name)s - %(message)s'
+logging.basicConfig(filename=_logfile,level=_loglevel,format=_logformat)
+_log = logging.getLogger('pornsite')
 
 _mc = pylibmc.Client(_config['_memcachedServer'], behaviors={"tcp_nodelay": True, "no_block": True})
 _m = MongoClient(_config['_mongoServer']['host'],_config['_mongoServer']['port'])
 _db = _m[_config['_mongoDb']['name']]
 _links = _db[_config['_mongoDb']['links']]
+_es = Elasticsearch()
 
 def _detectMobile(_ua):
+ if not _ua:
+  return False
+
  for _mua in _config['_mobile_ua']:
   if _mua in _ua:
    return True
 
  return False
 
-def _genRegex(_isMobile,_categoryField='',_categoryFilter=''):
+def _genFilter(_categoryField='',_categoryFilter=''):
+ _ua = bottle.request.headers.get('User-Agent')
+ _isMobile = _detectMobile(_ua)
  if _isMobile:
-  _regex = re.compile('^<video',re.IGNORECASE)
-
   if _categoryField and _categoryFilter:
-   _debug("_genRegex(): mobile regex, _categoryField = " + str(_categoryField) + ", _categoryFilter = " + str(_categoryFilter))
-   _catregex = re.compile(_categoryFilter,re.IGNORECASE)
-   _filter = {'embedLink':_regex,_categoryField:_catregex}
+   _debug("_genFilter(): mobile regex, _categoryField = " + str(_categoryField) + ", _categoryFilter = " + str(_categoryFilter))
+   _body = {"query":{"bool":{"should":[ {"match":{_categoryField:_categoryFilter}}, {"match":{'embedLink':'<video'}} ]}}}
   else:
-   _debug("_genRegex(): mobile regex, no category")
-   _filter = {'embedLink':_regex} 
+   _debug("_genFilter(): mobile regex, no category")
+   _body = {"query":{"match":{'embedLink':'<video'}}}
 
  else:
   if _categoryField and _categoryFilter:
-   _debug("_genRegex(): _categoryField = " + str(_categoryField) + ", _categoryFilter = " + str(_categoryFilter))
-   _catregex = re.compile(_categoryFilter,re.IGNORECASE)
-   _filter = {_categoryField:_catregex}
+   _debug("_genFilter(): _categoryField = " + str(_categoryField) + ", _categoryFilter = " + str(_categoryFilter))
+   _body = {"query":{"match":{_categoryField:_categoryFilter}}}
   else:
-   _debug("_genRegex(): generating empty set.")
-   _filter = {}
+   _debug("_genFilter(): generating empty set.")
+   _body = {}
 
- return _filter 
+ return _body
 
 def _sanitize(video):
  _debug("_sanitize(): input object: " + str(video))
@@ -77,7 +82,13 @@ def _sanitize(video):
  uri = ' '.join(uri.split())
  uri = uri.replace(' ','-').replace('%','').replace('?','').replace('/','').lower()
  uri = urllib.quote(uri.encode('utf-8'))
- video['uri'] = uri + '/'
+
+ if not uri:
+  video['uri'] = video['tags'].replace(';','-')
+  video['uri'] = urllib.quote(video['uri'].encode('utf-8')) + '/'
+ else:
+  video['uri'] = uri + '/'
+
  video['_id'] = str(video['_id'])
  video['title'] = video['title'].encode('utf-8').title()
  video['tags'] = video['tags'].encode('utf-8')
@@ -102,16 +113,18 @@ def _cache_get(_key):
 
 def _debug(_logstring):
  if _config['_debug']:
-  logging.debug(str(datetime.datetime.now()) + ": " + _logstring)
+  _log.debug(_logstring)
 
 @app.error(404)
 def error404(error):
  _debug("error404: " + str(error))
- bottle.response.status = 303
+ bottle.response.status = 301
  bottle.response.set_header(_config['_error404'][0],_config['_error404'][1])
 
-def generateVideos(_regex = {},offset = 1,category = 'none',mobile=False):
+def generateVideos(_find = {},offset = 1,category = 'none'):
  i = 0
+ _ua = bottle.request.headers.get('User-Agent')
+ mobile = _detectMobile(_ua)
 
  _pages_key = _config['_memcachedPrefix'] + '_pages_' + str(category)
  if mobile:
@@ -119,41 +132,58 @@ def generateVideos(_regex = {},offset = 1,category = 'none',mobile=False):
 
  pages = _cache_get(_pages_key)
  if not pages:
-  _debug("generateVideos(): memcached empty: " + str(_pages_key) + ", pages = " + str(pages))
-  pages = (_links.find(_regex).count()) / _config['_numVidsTiled']
-  _debug("generateVideos(): _regex = " + str(_regex) + ", pages = " + str(pages))
-  _cache_set(_pages_key,pages,_config['_memcachedPagesTimeout'])
+  pages = 1
+  _page_cache_empty = True
+ else:
+  _page_cache_empty = False
 
- _debug("generateVideos(): pages = " + str(pages))
- if offset > pages:
-  _debug("generateVideos(): supplied offset more than available pages.  offset = " + str(offset))
-  bottle.redirect('/')
-
- if offset > 1:
+ if offset == "rand":
+  if pages > 1:
+   skip = random.randint(0,int(pages))
+  else:
+   skip = 1
+ elif offset > 1:
   skip = _config['_mongoOffset'] + (_config['_numVidsTiled'] * offset)
  else:
   skip = _config['_mongoOffset']
 
- _metadata_key = _config['_memcachedPrefix'] + '_' + str(category) + '_skip_' + str(skip) 
- if mobile:
-  _metadata_key = _metadata_key + '_mobile'
+ _debug("generateVideos(): skip = " + str(skip))
 
- metadata = _cache_get(_metadata_key)
- if not metadata:
-  _debug("generateVideos(): memcached empty: " + str(_metadata_key))
-  metadata = dict()
-  for video in _links.find(_regex).sort('_id',-1).skip(skip).limit(_config['_numVidsTiled']).hint([('_id',1)]):
-   _debug("generateVideos(): video = " + str(video))
-   video = _sanitize(video)
-   metadata[i] = dict()
-   metadata[i] = video
-   i += 1
+ _esr_key = _config['_memcachedPrefix'] + '_' + str(category) + '_skip_' + str(skip)
+ if mobile: 
+  _esr_key = _esr_key + '_mobile'
 
- _cache_set(_metadata_key,metadata,_config['_memcachedVideosTimeout'])
- 
+ _esr = _cache_get(_esr_key)
+ if not _esr:
+  _esr = _es.search(index=_config['_esIndex'], size=_config['_numVidsTiled'], from_=skip, body=_find)
+  if _page_cache_empty:
+   _debug("generateVideos(): setting memcached key " + str(_pages_key) + " to " + str(_esr['hits']['total']))
+   pages = int(_esr['hits']['total']) / int(_config['_numVidsTiled'])
+   _cache_set(_pages_key,pages,_config['_memcachedPagesTimeout'])
+
+  _cache_set(_esr_key,_esr,_config['_memcachedVideosTimeout'])
+
+ metadata = dict()
+ for _v in _esr['hits']['hits']:
+  try:
+   video = _v['_source']
+  except:
+   _debug("generateVideos(): failed: _v = " + str(_v['source']))
+   continue
+
+  _debug("generateVideos(): video = " + str(video))
+  video = _sanitize(video)
+  metadata[i] = dict()
+  metadata[i] = video
+  i += 1
+
+ if pages == 1:
+  pages = 10
  return metadata,pages
 
 def templateVars():
+ _ua = bottle.request.headers.get('User-Agent')
+ isMobile = _detectMobile(_ua)
  _vars = dict()
  _vars['_config'] = dict()
  _vars['_config']['_site_title'] = _config['_site_title']
@@ -162,10 +192,19 @@ def templateVars():
  _vars['_config']['_twitter'] = _config['_twitter']
  _vars['_config']['_email'] = _config['_email']
  _vars['_config']['_btc_donate'] = _config['_btc_donate']
- _vars['_config']['main_page_ad'] = _config['main_page_ad']
- _vars['_config']['video_page_ad'] = _config['video_page_ad']
- _vars['_config']['footer_ad'] = _config['footer_ad']
- _vars['_config']['footer_popunder'] = _config['footer_popunder']
+
+ if not isMobile:
+  _vars['_config']['main_page_ad'] = _config['main_page_ad']
+  _vars['_config']['video_page_ad'] = _config['video_page_ad']
+  _vars['_config']['footer_ad'] = _config['footer_ad']
+  _vars['_config']['footer_popunder'] = _config['footer_popunder']
+ else:
+  _vars['_config']['main_page_ad'] = _config['mobile_main_page_ad']
+  _vars['_config']['video_page_ad'] = _config['mobile_video_page_ad']
+  _vars['_config']['footer_ad'] = _config['mobile_footer_ad']
+  _vars['_config']['footer_popunder'] = _config['mobile_footer_popunder']
+  
+ _vars['_config']['video_tile_ad'] = _config['video_tile_ad']
  _vars['_config']['_links'] = _config['_links']
  _vars['_config']['_categories'] = _config['_categories']
  _vars['_config']['META_KEYWORDS'] = _config['META_KEYWORDS']
@@ -182,13 +221,14 @@ def templateVars():
  _path = bottle.request.path
  _vars['_config']['_path'] = _path
  _vars['_config']['marquee'] = _config['marquee']
+ _vars['_config']['text_color'] = _config['text_color']
 
  return _vars
 
 @app.route('/about')
 def aboutMissingSlash():
  _debug("aboutMissingSlash():  /about missing trailing /")
- bottle.redirect('/about/')
+ bottle.redirect('/about/',code=301)
 
 @app.route('/about/')
 def about():
@@ -201,28 +241,28 @@ def about():
 @app.route('/video/<videoid>/<title>')
 def videoMissingSlash(videoid,title=''):
  _debug("videoMissingSlash(): videoid = " + str(videoid))
- try:
-  out = _links.find_one({'_id': ObjectId(videoid)})
-  _debug("videoMissingSlash(): mongo find_one = " + str(out))
- except:
-  _debug("videoMissingSlash(): mongo find_one except")
-  bottle.redirect('/')
+ _debug(type(videoid))
+ out = _links.find_one({'_id': ObjectId(videoid)})
+ _debug("videoMissingSlash(): mongo find_one = " + str(out))
+ if not out:
+  bottle.redirect('/',code=301)
 
  out = _sanitize(out)
  uri = '/video/' + str(videoid) + '/' + str(out['uri'])
  _debug("videoMissingSlash(): redirecting to: " + str(uri))
- bottle.redirect(uri)
+ bottle.redirect(uri,code=301)
 
 @app.route('/video/<videoid>/<title>/')
 def showvideo(videoid,title):
- _debug("showvideo(): videoid = " + str(videoid))
- _debug("showvideo(): title = " + str(title))
- try:
-  out = _links.find_one({'_id': ObjectId(videoid)})
-  _debug("showvideo(): mongo find_one = " + str(out))
- except:
-  _debug("showvideo(): mongo find_one except")
-  bottle.redirect('/')
+ _debug("showvideo(): videoid = " + str(videoid) + ".")
+ videoid = unicode(videoid)
+ _debug(type(videoid))
+ _debug(videoid)
+ out = _links.find_one({'_id': ObjectId(videoid)})
+ if not out:
+  _debug("showvideo(): mongo find_one out = " + str(out))
+  
+  bottle.redirect('/',code=301)
  
  out = _sanitize(out)
  _vars = templateVars()
@@ -231,39 +271,23 @@ def showvideo(videoid,title):
 
 @app.route('/categories/<category>/random/')
 def randomCatPage(category):
- _ua = bottle.request.headers.get('User-Agent')
- _isMobile = _detectMobile(_ua)
  _pages_key = _config['_memcachedPrefix'] + '_pages_' + str(category)
 
- if _isMobile:
-  _pages_key = _pages_key + '_mobile'
-
- _pages = _cache_get(_pages_key)
- if not _pages:
-  _rand = 0
- else:
-  _rand = random.randint(0,_pages) 
- 
  try:
   c = _config["_categories"][category]
-  _regex = re.compile(c[1],re.IGNORECASE)
   _debug("randomCatPage(): c = " + str(c))
  except:
   _debug("randomCatPage(): _config['_categories'][category] for " + str(category) + " failed.")
-  bottle.redirect('/')
+  bottle.redirect('/',code=301)
 
  _debug("randomCatPage(): category = " + str(category))
- if _isMobile:
-  _filter = _genRegex(True,c[0],c[1])
-  out,pages = generateVideos(_filter,_rand,c[1],True)
- else:
-  _filter = _genRegex(False,c[0],c[1])
-  out,pages = generateVideos(_filter,_rand,c[1])
-
+ _filter = _genFilter(c[0],c[1])
+ out,pages = generateVideos(_filter,"rand",c[1])
  _debug("randomCatPage(): out = " + str(out))
 
  _vars = templateVars()
  _vars['_config']['uri_prefix'] = '/categories/' + str(category) + '/'
+
  _vars['_config']['active_category'] = category
  _vars['_config']['pages'] = pages
  return template(_config['base_template'],dict(out=out,_config=_vars['_config']))
@@ -274,44 +298,36 @@ def categoryMissingSlash(category):
  if category in _config['_categories']:
   uri = bottle.request.path + '/'
   _debug("categoryMissingSlash(): redirecting to: " + str(uri))
-  bottle.redirect(uri)
+  bottle.redirect(uri,code=301)
  else:
   _debug("categoryMissingSlash(): _config['_categories'][category] for " + str(category) + " failed.")
-  bottle.redirect('/')
+  bottle.redirect('/',code=301)
 
 @app.route('/categories/<category>/page/<page>/')
 @app.route('/categories/<category>/')
-def category(category,page=0):
+def category(category,page=1):
  try:
   page = int(page)
  except:
   _debug("category(): page is not an integer")
-  bottle.redirect('/')
+  bottle.redirect('/',code=301)
 
  try:
   c = _config["_categories"][category]
   _debug("category(): c = " + str(c))
  except:
   _debug("category(): _config['_categories'][category] for " + str(category) + " failed.")
-  bottle.redirect('/')
+  bottle.redirect('/',code=301)
 
  if page < _config['_maxPage']:
   _debug("category(): category = " + str(category))
-  _ua = bottle.request.headers.get('User-Agent')
-  _isMobile = _detectMobile(_ua)
-  if _isMobile:
-   _debug("category(): detected mobile")
-   _filter = _genRegex(True,c[0],c[1])
-   out,pages = generateVideos(_filter,page,c[1],True)
-  else:
-   _debug("category(): desktop")
-   _filter = _genRegex(False,c[0],c[1])
-   out,pages = generateVideos(_filter,page,c[1])
+  _filter = _genFilter(c[0],c[1])
+  out,pages = generateVideos(_filter,page,c[1])
 
   _debug("category(): out = " + str(out))
  else:
   _debug("category(): redirecting to /, out of bounds page: " + str(page))
-  bottle.redirect('/')
+  bottle.redirect('/',code=301)
 
  _vars = templateVars()
  _vars['_config']['uri_prefix'] = '/categories/' + str(category) + '/'
@@ -326,39 +342,23 @@ def pageMissingSlash(page):
   page = int(page)
  except:
   _debug("pageMissingSlash(): page is not integer")
-  bottle.redirect('/')
+  bottle.redirect('/',code=301)
 
  if page < _config['_maxPage']:
   uri = '/page/' + str(page) + '/'
-  bottle.redirect(uri)
+  bottle.redirect(uri,code=301)
  else:
   _debug("pageMissingSlash(): redirecting to /, out of bounds page: " + str(page))
-  bottle.redirect('/')
+  bottle.redirect('/',code=301)
 
 @app.route('/about/random/')
 @app.route('/random')
 def randomMissingSlash():
- bottle.redirect('/random/')
+ bottle.redirect('/random/',code=301)
 
 @app.route('/random/')
 def randomPage():
- _ua = bottle.request.headers.get('User-Agent')
- _isMobile = _detectMobile(_ua)
- _pages_key = _config['_memcachedPrefix'] + '_pages_none'
-
- if _isMobile:
-  _pages_key = _pages_key + '_mobile'
-
- _pages = _cache_get(_pages_key)
- if not _pages:
-  _rand = 0
- else:
-  _rand = random.randint(0,_pages)
- 
- if _isMobile:
-  out,pages = generateVideos({},_rand,'none',True)
- else:
-  out,pages = generateVideos({},_rand)
+ out,pages = generateVideos({},"rand")
   
  _vars = templateVars()
  _vars['_config']['uri_prefix'] = '/'
@@ -367,25 +367,19 @@ def randomPage():
  
 @app.route('/page/<page>/')
 @app.route('/')
-def home(page=0):
+def home(page=1):
  try:
   page = int(page)
  except:
   _debug("home(): page is not an integer")
-  bottle.redirect('/')
+  bottle.redirect('/',code=301)
 
- _ua = bottle.request.headers.get('User-Agent')
- _isMobile = _detectMobile(_ua)
  if page < _config['_maxPage']:
-  if _isMobile:
-   _filter = _genRegex(True)
-   out,pages = generateVideos(_filter,page,'none',True)
-  else:
-   _filter = _genRegex(False)
-   out,pages = generateVideos(_filter,page)
+  _filter = _genFilter()
+  out,pages = generateVideos(_filter,page,'none')
  else:
   _debug("home(): redirecting to /, out of bounds page: " + str(page))
-  bottle.redirect('/')
+  bottle.redirect('/',code=301)
 
  _vars = templateVars()
  _vars['_config']['uri_prefix'] = '/'

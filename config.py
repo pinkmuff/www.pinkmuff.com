@@ -9,6 +9,7 @@ _config = {
  "_mongoServer": {"host": "127.0.0.1", "port": 27017},
  "_mongoDb": {"name": "porn", "links": "links"},
  "_mongoOffset": 0,
+ "_esIndex": "pornlinks",
  "_numVidsTiled": 60,
  "_appLogFileName": "logs/app/app.log",
  "_site_title": "##FQDN##",

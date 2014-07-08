@@ -15,11 +15,12 @@ if len(sys.argv) != 2:
 def _sanitize(video):
  uri = re.sub(r'[^\x00-\x7F]+',' ', video['title'])
  uri = ' '.join(uri.split())
- uri = uri.replace(' ','-').replace('%','').lower()
+ uri = uri.replace(' ','-').replace('%','').replace('?','').replace('/','').lower()
  uri = urllib.quote(uri.encode('utf-8'))
  video['uri'] = uri + '/'
  video['_id'] = str(video['_id'])
  video['title'] = video['title'].encode('utf-8').title()
+ video['tags'] = video['tags'].encode('utf-8')
 
  return video
 
