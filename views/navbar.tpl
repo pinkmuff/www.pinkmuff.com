@@ -36,6 +36,9 @@
 % end
 </ul>
 </li>
+<li class="navbar-form"><input id="search" type="text" class="form-control" placeholder="Anal" onkeydown="_search(event)" /></li>
+<li><a id="search_button" href="javascript:onclick(window.location.href='/search/' + document.getElementById('search').value + '/');"><i class="fa fa-search"></i></a></li>
+<script>function _search(e){if(e.keyCode == 13){window.location.href='/search/'+document.getElementById('search').value+'/';}}</script>
 </ul>
 </div>
 </div>

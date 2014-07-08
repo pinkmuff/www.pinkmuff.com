@@ -23,6 +23,7 @@
   })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
 
   ga('create', '{{_config['_ga_code']}}', '{{_config['_ga_site']}}');
+  ga('require', 'displayfeatures');
   ga('send', 'pageview');
 </script>
 <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>

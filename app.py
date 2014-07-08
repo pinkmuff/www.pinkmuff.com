@@ -151,7 +151,7 @@ def generateVideos(_find = {},offset = 1,category = 'none'):
 
  _esr_key = _config['_memcachedPrefix'] + '_' + str(category) + '_skip_' + str(skip)
  if mobile: 
-  _esr_key = _esr_key + '_mobile'
+  _metadata_key = _metadata_key + '_mobile'
 
  _esr = _cache_get(_esr_key)
  if not _esr:
@@ -364,7 +364,41 @@ def randomPage():
  _vars['_config']['uri_prefix'] = '/'
  _vars['_config']['pages'] = pages
  return template(_config['base_template'],dict(out=out,_config=_vars['_config']))
+
+@app.route('/search/<term>')
+@app.route('/search/')
+@app.route('/search')
+def searchMissing(term=False):
+ bottle.redirect('/',code=301)
  
+@app.route('/search/<term>/page/<page>/')
+@app.route('/search/<term>/')
+def search(term,page=1):
+ try:
+  page = int(page)
+ except:
+  _debug("search(): page is not an integer")
+  bottle.redirect('/',code=301)
+
+ if not term.isalpha():
+  _debug("search(): received bad search term: " + str(term))
+  bottle.redirect('/',code=301)
+
+ if page < _config['_maxPage']:
+  _filter = _genFilter("tags",term)
+  _cat = "search_" + str(term) 
+  out,pages = generateVideos(_filter,page,_cat)
+ else:
+  _debug("search(): redirecting to /, out of bounds page: " + str(page))
+  bottle.redirect('/',code=301)
+
+ _vars = templateVars()
+ _vars['_config']['uri_prefix'] = '/search/' + str(term) + '/'
+ _vars['_config']['page'] = page
+ _vars['_config']['pages'] = pages
+ return template(_config['base_template'],dict(out=out,_config=_vars['_config']))
+
+
 @app.route('/page/<page>/')
 @app.route('/')
 def home(page=1):
