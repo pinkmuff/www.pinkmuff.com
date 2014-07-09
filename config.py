@@ -22,6 +22,7 @@ _config = {
  "_email": "",
  "_btc_donate": "14rXeD3SFeopjvuHi7kU4gbnbewM6k1iE7",
  "_mobile_ua": ["iPhone","iPad","Mobile Safari","Android"],
+ "search_placeholder": "Anal",
  "cache_expires": "21600",
  "base_template": "base.tpl",
  "video_template": "video.tpl",

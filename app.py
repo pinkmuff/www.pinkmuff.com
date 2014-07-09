@@ -222,6 +222,7 @@ def templateVars():
  _vars['_config']['_path'] = _path
  _vars['_config']['marquee'] = _config['marquee']
  _vars['_config']['text_color'] = _config['text_color']
+ _vars['_config']['search_placeholder'] = _config['search_placeholder']
 
  return _vars
 
@@ -380,13 +381,13 @@ def search(term,page=1):
   _debug("search(): page is not an integer")
   bottle.redirect('/',code=301)
 
- if not term.isalpha():
-  _debug("search(): received bad search term: " + str(term))
-  bottle.redirect('/',code=301)
+ _strip = re.compile('([^\s\w]|_)+')
+ term = _strip.sub('',term)
 
  if page < _config['_maxPage']:
   _filter = _genFilter("tags",term)
-  _cat = "search_" + str(term) 
+  _term = term.replace(' ','')
+  _cat = "search_" + str(_term) 
   out,pages = generateVideos(_filter,page,_cat)
  else:
   _debug("search(): redirecting to /, out of bounds page: " + str(page))
@@ -396,6 +397,7 @@ def search(term,page=1):
  _vars['_config']['uri_prefix'] = '/search/' + str(term) + '/'
  _vars['_config']['page'] = page
  _vars['_config']['pages'] = pages
+ _vars['_config']['search_placeholder'] = term
  return template(_config['base_template'],dict(out=out,_config=_vars['_config']))
 
 
