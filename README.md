@@ -23,27 +23,27 @@ Your uwsgi ##PATH_TO_YOUR_PYTHON_CODE## should live outside of nginx's root.
 This ensures that only static files on ##YOUR_DOMAIN## are served and all other requests filter in to USWGI.
 
      cat > /etc/uwsgi/apps-enabled/porn.ini << EOF
-[uwsgi]
-chdir = /var/www/pornsite
-master = true
-plugins = python
-file = app.py
-uid = www-data
-chmod-socket = 640
-chown-socket = www-data
-vacuum = true
-processes = 4
-threads = 2
-offload-threads = 1
-harakiri = 30
-logto2 = /var/www/www.pornsite.com/logs/uwsgi/pornsite.log
-env = _DOCROOT=/var/www/www.pornsite.com
-stats = /run/uwsgi/porn.stats
-socket = /run/uwsgi/porn.socket
+     [uwsgi]
+     chdir = /var/www/pornsite
+     master = true
+     plugins = python
+     file = app.py
+     uid = www-data
+     chmod-socket = 640
+     chown-socket = www-data
+     vacuum = true
+     processes = 4
+     threads = 2
+     offload-threads = 1
+     harakiri = 30
+     logto2 = /var/www/www.pornsite.com/logs/uwsgi/pornsite.log
+     env = _DOCROOT=/var/www/www.pornsite.com
+     stats = /run/uwsgi/porn.stats
+     socket = /run/uwsgi/porn.socket
 
-## If you use graphite/carbon
-carbon = 127.0.0.1:2003
-EOF
+     ## If you use graphite/carbon
+     carbon = 127.0.0.1:2003
+     EOF
 
 # Third
 
