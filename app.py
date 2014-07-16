@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import math
 import urllib
 import bottle
 import random
@@ -92,6 +93,9 @@ def _sanitize(video):
  video['_id'] = str(video['_id'])
  video['title'] = video['title'].encode('utf-8').title()
  video['tags'] = video['tags'].encode('utf-8')
+ if 'duration' in video:
+  video['duration'] = int(math.ceil(int(video['duration'])/60))
+
  _debug("_sanitize(): output object: " + str(video))
  return video
 
@@ -155,7 +159,7 @@ def generateVideos(_find = {},offset = 1,category = 'none'):
 
  _esr = _cache_get(_esr_key)
  if not _esr:
-  _esr = _es.search(index=_config['_esIndex'], size=_config['_numVidsTiled'], from_=skip, body=_find)
+  _esr = _es.search(index=_config['_esIndex'], size=_config['_numVidsTiled'], from_=skip, body=_find, sort='_uid:desc')
   if _page_cache_empty:
    _debug("generateVideos(): setting memcached key " + str(_pages_key) + " to " + str(_esr['hits']['total']))
    pages = int(_esr['hits']['total']) / int(_config['_numVidsTiled'])
@@ -193,18 +197,15 @@ def templateVars():
  _vars['_config']['_email'] = _config['_email']
  _vars['_config']['_btc_donate'] = _config['_btc_donate']
 
+ _vars['_config']['footer_popunder'] = _config['footer_popunder']
+
  if not isMobile:
   _vars['_config']['main_page_ad'] = _config['main_page_ad']
   _vars['_config']['video_page_ad'] = _config['video_page_ad']
-  _vars['_config']['footer_ad'] = _config['footer_ad']
-  _vars['_config']['footer_popunder'] = _config['footer_popunder']
  else:
-  _vars['_config']['main_page_ad'] = _config['mobile_main_page_ad']
-  _vars['_config']['video_page_ad'] = _config['mobile_video_page_ad']
-  _vars['_config']['footer_ad'] = _config['mobile_footer_ad']
-  _vars['_config']['footer_popunder'] = _config['mobile_footer_popunder']
+  _vars['_config']['main_page_ad'] = '<br>'
+  _vars['_config']['video_page_ad'] = '<br>'
   
- _vars['_config']['video_tile_ad'] = _config['video_tile_ad']
  _vars['_config']['_links'] = _config['_links']
  _vars['_config']['_categories'] = _config['_categories']
  _vars['_config']['META_KEYWORDS'] = _config['META_KEYWORDS']
@@ -265,6 +266,13 @@ def showvideo(videoid,title):
   
   bottle.redirect('/',code=301)
  
+ if not '_viewcount' in out:
+  out['_viewcount'] = 1
+ else:
+  out['_viewcount'] += 1
+
+ _links.save(out)
+
  out = _sanitize(out)
  _vars = templateVars()
  
@@ -288,9 +296,14 @@ def randomCatPage(category):
 
  _vars = templateVars()
  _vars['_config']['uri_prefix'] = '/categories/' + str(category) + '/'
-
- _vars['_config']['active_category'] = category
+ _vars['_config']['active_category'] = c[2]
  _vars['_config']['pages'] = pages
+
+ try:
+  _vars['_config']['footer_popunder'] = c[3]
+ except:
+  pass
+
  return template(_config['base_template'],dict(out=out,_config=_vars['_config']))
 
 @app.route('/categories/<category>/random')
@@ -332,9 +345,13 @@ def category(category,page=1):
 
  _vars = templateVars()
  _vars['_config']['uri_prefix'] = '/categories/' + str(category) + '/'
- _vars['_config']['active_category'] = category
+ _vars['_config']['active_category'] = c[2]
  _vars['_config']['page'] = page
  _vars['_config']['pages'] = pages
+ try:
+  _vars['_config']['footer_popunder'] = c[3]
+ except:
+  pass
  return template(_config['base_template'],dict(out=out,_config=_vars['_config']))
 
 @app.route('/page/<page>')

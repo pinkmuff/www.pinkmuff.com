@@ -14,7 +14,7 @@
 <li><a  href="/"><i class="fa fa-home">&nbsp;Home</i></a></li>
 <li><a  href="/about/"><i class="fa fa-eye">&nbsp;About</i></a></li>
 <li class="dropdown">
-<a href="#" class="dropdown-toggle" data-toggle="dropdown"><i class="fa fa-book">&nbsp;Categories </i>&nbsp;<b class="fa fa-caret-down"></b></a>
+<a href="#" class="dropdown-toggle" data-toggle="dropdown"><i class="fa fa-book">&nbsp;Categories ({{_config["active_category"]}})</i>&nbsp;<b class="fa fa-caret-down"></b></a>
 <ul class="dropdown-menu kolumny">
 % for c,v in sorted(_config['_categories'].iteritems()):
 <li><a href="/categories/{{c}}/">{{v[2]}}</a></li>
@@ -27,7 +27,6 @@
 % else:
 <li class="white"><a href="/random/"><i class="fa fa-spinner fa-spin">&nbsp;</i><i class="fa">&nbsp;Random</i></a><li>
 % end
-</li>
 <li class="dropdown">
 <a href="#" class="dropdown-toggle white" data-toggle="dropdown"><i class="fa">Links&nbsp;</i><b class="fa fa-caret-down"></b></a>
 <ul class="dropdown-menu">
@@ -38,9 +37,7 @@
 </li>
 <li class="navbar-form"><input id="search" type="text" class="form-control" placeholder="{{_config['search_placeholder']}}" onkeydown="_search(event)" /></li>
 <li><a id="search_button" href="javascript:onclick(window.location.href='/search/' + document.getElementById('search').value + '/');"><i class="fa fa-search"></i></a></li>
-<script>function _search(e){if(e.keyCode == 13){window.location.href='/search/'+document.getElementById('search').value+'/';}}</script>
 </ul>
-</div>
 </div>
 </div>
 </div>

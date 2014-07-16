@@ -1,50 +1,33 @@
 % _config['META_DESCRIPTION'] = _config['META_DESCRIPTION'] + ", category " + _config['active_category']
 % include('_header.tpl', title_extra=_config['META_KEYWORDS'])
 % include('navbar.tpl')
-<div class="row text-center">
-{{!_config['main_page_ad']}}
-</div>
-<div class="container">
-<h1 class="small {{_config['text_color']}}"><b><i>{{_config['_site_title']}}</b> - {{_config['_by_line']}}</i></h1>
-<h2 class="small {{_config['text_color']}}"><strong><i>Category:</i> {{_config["active_category"]}}</strong></h2>
-</div>
-<div class="container">
-<div class="row">
-% count = 0
-% _ad_counter = 0
+<div class="container col-lg-12">
+<div class="row-fluid">
+<div class="span3 pull-right">{{!_config['main_page_ad']}}</div>
+<div class="span9">
+<div class="_vidscontainer">
 % for i,video in out.iteritems():
-% if _ad_counter == 2:
-<div class="thumbnail col-xs-4 rhthumb"><div class="customad">{{!_config['video_tile_ad']}} </div></div>
-% _ad_counter += 1
-% else:
-% _ad_counter += 1
-<div class="thumbnail col-xs-4 rhthumb"><a href='/video/{{video['_id']}}/{{video['uri']}}'><img id="video{{i}}" src='{{video['thumbLink']}}' alt='{{video['title']}}'></a>
-<div class="caption {{_config['text_color']}}"><h3 class="small"><strong>Title:&nbsp;</strong>{{video['title']}}</h3>
+<div class="_video col-xs-6">
 % if "tags" in video:
 % tags = video['tags'].replace(';',' ').title()
-<h4 class="small"><strong>Tags:&nbsp;</strong> {{tags}}</h4>
+% else:
+% tags = ''
 % end
+<div title="{{tags}}" class="_img" itemscope itemtype="http://schema.org/MediaObject" style="background-image: url({{video['thumbLink']}});"><meta itemprop="about" content="{{tags}}" /><meta itemprop="thumbnailUrl" content="{{video['thumbLink']}}" /><a itemprop="contentUrl" href='/video/{{video['_id']}}/{{video['uri']}}'></a></div>
+<div class="caption"><div class="_title" itemprop="name"><p><i class="fa fa-film">&nbsp;{{video['title']}}</i></p></div>
 % if "duration" in video and int(video['duration']) > 0:
-<h5 class="small"><strong>Duration:&nbsp;</strong> {{video['duration']}} seconds</h5>
-% else:
-<h5 class="small"><strong>Duration:&nbsp;</strong> --</h5>
+<div class="_duration" itemprop="duration"><p><i class="fa fa-clock-o">&nbsp;{{video['duration']}} minutes</i></p></div>
+% end
+% if "_viewcount" in video:
+<div class="_viewcount"><p><i class="fa fa-eye">&nbsp;{{video['_viewcount']}} views</i></p><meta itemprop="interactionCount" content="UserDownloads:{{video['_viewcount']}}" /></div>
+% end
+</div></div>
 % end
 </div>
 </div>
-% end
-% if count == 2:
 </div>
-<div class="row">
-% count = 0
-% else:
-<!--</div>-->
-% count += 1
-% end 
-% end
-<!--</div>-->
 </div>
-<div class="container">
-<div class="row text-center">
+<div class="row-fluid text-center">
 <ul class="pagination">
 % if _config['page'] <= 1:
 <!--<li class="disabled"><a href="#">&laquo;</a></li>-->
@@ -78,6 +61,5 @@
 <li><a href="{{_config['uri_prefix']}}page/{{target}}/">&raquo;</a></li>
 % end
 </ul>
-</div>
 </div>
 % include('_footer.tpl')

@@ -5,28 +5,31 @@
 % end
 % _config['META_KEYWORDS'] = _config['META_KEYWORDS'].replace(' ',', ').replace(';',', ').title()
 % _config['META_DESCRIPTION'] = out['title'].title()
-% title_extra = out['title'].replace('-',' ') + ' ' + out['tags'].replace(';',' ').title()
+% title_extra = out['title'].replace('-',' ') + ' ' + out['tags'].replace(';',' ').title() # ' 
 % include('_header.tpl', title_extra=title_extra)
 % include('navbar.tpl')
-<div class="container">
-<div class="row text-center" id="_top_ad">
-{{!_config['video_page_ad']}}
-</div>
-<div class="row text-center {{_config['text_color']}}"><h1 class="small"><i class="fa">Did you know?  On HTML5 players, you can Right Click below and Save Video!</i></h1></div>
-</div>
-<div class="container">
-<div class="row text-center">{{!out['embedLink']}}
-<div class="caption text-center"><h1 class="small"><i class="fa">Title: {{out['title']}}</i></h1>
+<div class="container col-lg-12">
+<div class="row-fluid">
+<div class="span9">
+<div class="_vidscontainer">
+<div class="_videoplayer col-xs-6" itemscope itemtype="http://schema.org/MediaObject">
+{{!out['embedLink']}}
+<div class="_video_caption"><div class="_video_title" itemprop="name"><i class="fa fa-film">&nbsp;{{out['title']}}</i></p></div>
 % if "tags" in out:
 % tags = out['tags'].replace(';',' ').title()
-<h2 class="small"><i class="fa">Tags: {{tags}}</i></h2>
+<div class="_video_tags" itemprop="about"><p><i class="fa fa-file-text-o">&nbsp;{{tags}}</i></p></div>
 % end
 % if "duration" in out and int(out['duration']) > 0:
-<h3 class="small"><i class="fa">Duration: {{out['duration']}} seconds</i></h3>
-% else:
-<h3 class="small"><i class="fa">Duration: --</i></h3>
+<div class="_video_duration" itemprop="duration"><p><i class="fa fa-clock-o">&nbsp;{{out['duration']}} minutes</i></p></div>
 % end
-<div class="caption text-center"><h4 class="small"><a href="{{_config['_path']}}"><i class="fa">Having trouble showing the video?  Try refreshing the page!</i></a></h4></div>
+% if "_viewcount" in out:
+<div class="_video_viewcount"><p><i class="fa fa-eye">&nbsp;{{out['_viewcount']}} views</i></p><meta itemprop="interactionCount" content="UserDownloads:{{out['_viewcount']}}" /></div>
+<div class="_video_caption"><p><a href="{{_config['_path']}}"><i class="fa fa-exclamation-circle">&nbsp;Having trouble showing the video?  Try refreshing the page!</i></a></p></div>
+<div class="_video_caption"><p><i class="fa fa-exclamation-circle">&nbsp;Did you know?  On HTML5 players, you can Right Click and Save Video!</i></p></div>
 </div>
+</div>
+</div>
+</div>
+<div class="span3"> {{!_config['video_page_ad']}} </div>
 </div>
 % include('_footer.tpl')

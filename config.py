@@ -7,12 +7,13 @@ _config = {
  "_memcachedVideosTimeout": 86400,
  "_memcachedPrefix": "##MEMCACHED_PREFIX##",
  "_mongoServer": {"host": "127.0.0.1", "port": 27017},
+ "_esIndex": "pornlinks",
  "_mongoDb": {"name": "porn", "links": "links"},
  "_mongoOffset": 0,
- "_esIndex": "pornlinks",
  "_numVidsTiled": 60,
  "_appLogFileName": "logs/app/app.log",
  "_site_title": "##FQDN##",
+ "_site_css": "main",
  "_staticHost": "static.##FQDN##",
  "_standaloneIP": "0.0.0.0",
  "_standalonePort": 65080,
@@ -21,7 +22,7 @@ _config = {
  "_twitter": "",
  "_email": "",
  "_btc_donate": "14rXeD3SFeopjvuHi7kU4gbnbewM6k1iE7",
- "_mobile_ua": ["iPhone","iPad","Mobile Safari","Android"],
+ "_mobile_ua": ["iPhone","iPad","Mobile Safari","Android","DoCoMo","SAMSUNG-SGH","Windows Phone"],
  "search_placeholder": "Anal",
  "cache_expires": "21600",
  "base_template": "base.tpl",
@@ -29,7 +30,6 @@ _config = {
  "about_template": "about.tpl",
  "main_page_ad": '',
  "video_page_ad": '',
- "footer_ad": '',
  "footer_popunder": '',
  "marquee": '<marquee style="position: fixed; width: 0px;"><a href="http://www.pinkmuff.com/">www.pinkmuff.com</a></marquee>',
  "META_KEYWORDS": "",
@@ -43,14 +43,13 @@ _config = {
 }
 
 _friends = {
-  "Yourporn!": "http://www.yourporn.me/",
-  "PornHump": "http://www.pornhump.net/",
-  "Digital Ocean Hosting": "https://www.digitalocean.com/?refcode=9531e97e8f19"
+  "Pink Muff": "http://www.pinkmuff.com/",
+  "Digital Ocean Hosting": "https://www.linode.com/?r=d841da92f44278f5afe5f2bf910b3be87c33a8c1"
 }
 
 _categories = {
-  "anal": ["tags", "anal", "Anal"],
-  "milf": ["tags", "milf", "MILF"],
+  "anal": ["tags", "anal", "Anal", '##ANAL SPECIFIC POPUNDER##'],
+  "milf": ["tags", "milf", "MILF", '##MILF SPECIFIC POPUNDER##'],
   "teen": ["tags", "teen", "Teen"],
   "gay":  ["tags", "gay", "Gay"],
   "asian": ["tags", "asian", "Asian"],
