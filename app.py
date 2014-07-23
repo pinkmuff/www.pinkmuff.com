@@ -225,6 +225,7 @@ def templateVars():
  _vars['_config']['text_color'] = _config['text_color']
  _vars['_config']['search_placeholder'] = _config['search_placeholder']
 
+ _vars['_config']['adbar'] = _config['main_page_ad']
  return _vars
 
 @app.route('/about')
@@ -275,6 +276,7 @@ def showvideo(videoid,title):
 
  out = _sanitize(out)
  _vars = templateVars()
+ _vars['_config']['adbar'] = _config['video_page_ad']
  
  return template(_config['video_template'],dict(out=out,_config=_vars['_config']))
 

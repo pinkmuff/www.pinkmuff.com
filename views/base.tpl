@@ -3,7 +3,7 @@
 % include('navbar.tpl')
 <div class="container col-lg-12">
 <div class="row-fluid">
-<div class="span3 pull-right">{{!_config['main_page_ad']}}</div>
+<div class="span3 pull-right" id="iframe_sidebar"></div>
 <div class="span9">
 <div class="_vidscontainer">
 % for i,video in out.iteritems():
@@ -13,13 +13,14 @@
 % else:
 % tags = ''
 % end
-<div title="{{tags}}" class="_img" itemscope itemtype="http://schema.org/MediaObject" style="background-image: url({{video['thumbLink']}});"><meta itemprop="about" content="{{tags}}" /><meta itemprop="thumbnailUrl" content="{{video['thumbLink']}}" /><a itemprop="contentUrl" href='/video/{{video['_id']}}/{{video['uri']}}'></a></div>
-<div class="caption"><div class="_title" itemprop="name"><p><i class="fa fa-film">&nbsp;{{video['title']}}</i></p></div>
+<div title="{{tags}}" class="_img" itemscope itemtype="http://schema.org/MediaObject"><a itemprop="contenturl" href="/video/{{video['_id']}}/{{video['uri']}}"><img itemprop="thumbnailUrl" class="_img" src="{{video['thumbLink']}}" alt="{{tags}}" /></a></div>
+<div class="caption"><div class="_title" itemprop="name"><i class="_icon fa fa-film">&nbsp;</i><i class="fa">{{video['title']}}</i></div>
+<div class="_tags" itemprop="about"><i class="_icon fa fa-file-text-o">&nbsp;</i><i class="fa">{{tags}}</i></div>
 % if "duration" in video and int(video['duration']) > 0:
-<div class="_duration" itemprop="duration"><p><i class="fa fa-clock-o">&nbsp;{{video['duration']}} minutes</i></p></div>
+<div class="_duration" itemprop="duration"><i class="_icon fa fa-clock-o">&nbsp;</i><i class="fa">{{video['duration']}} minutes</i></div>
 % end
 % if "_viewcount" in video:
-<div class="_viewcount"><p><i class="fa fa-eye">&nbsp;{{video['_viewcount']}} views</i></p><meta itemprop="interactionCount" content="UserDownloads:{{video['_viewcount']}}" /></div>
+<div class="_viewcount"><i class="_icon fa fa-eye">&nbsp;</i><i class="fa">{{video['_viewcount']}} views</i><meta itemprop="interactionCount" content="UserDownloads:{{video['_viewcount']}}" /></div>
 % end
 </div></div>
 % end

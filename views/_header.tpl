@@ -31,11 +31,18 @@
   ga('require', 'displayfeatures');
   ga('send', 'pageview');
 </script>
-<link rel="stylesheet" href="//{{_config['_staticHost']}}/css/bootstrap.min.css">
-<link rel="stylesheet" href="//{{_config['_staticHost']}}/css/bootstrap-theme.min.css">
-<link rel="stylesheet" href="//{{_config['_staticHost']}}/css/font-awesome.min.css">
-<link rel="stylesheet" href="//{{_config['_staticHost']}}/css/{{_config['_site_css']}}.css">
-<script src="//{{_config['_staticHost']}}/js/jquery-1.11.0.min.js"></script>
-<script src="//{{_config['_staticHost']}}/js/bootstrap.min.js"></script>
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="/css/{{_config['_site_css']}}.css">
+<script src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script type="text/javascript"> window.onload = preloader; function preloader() { javascript:document.getElementById('iframe_sidebar').innerHTML = '<iframe src="{{_config["adbar"]}}" width="320" height="960" scrolling="no" frameborder="0" allowtransparency="true" marginheight="0" marginwidth="0"></iframe>'; } </script>
+<script data-cfasync="false" type="text/javascript"> (function(s,o,l,v,e,d){if(s[o]==null&&s[l+e]){s[o]="loading";s[l+e](d,l=function(){s[o]="complete";s[v+e](d,l,!1)},!1)}})(document,"readyState","add","remove","EventListener","DOMContentLoaded"); (function() { var s = document.createElement("script"); s.type = "text/javascript"; s.async = true; s.src = "http://cdn.engine.phn.doublepimp.com/Scripts/infinity.js.aspx?guid=e038d6d9-51f8-47d3-b623-2ef4a375a535"; s.id = "infinity"; s.setAttribute("data-guid", "e038d6d9-51f8-47d3-b623-2ef4a375a535"); s.setAttribute("data-version", "async"); var e = document.getElementsByTagName('script')[0]; e.parentNode.insertBefore(s, e); })();
+</script>
+% if "/video/" in _config['_path']:
+<link rel="stylesheet" href="/me/mediaelementplayer.css">
+<script src="/me/mediaelement-and-player.min.js"></script>
+% end
 </head>
 <body role="document" id="_body" itemscope itemtype="http://schema.org/WebPage">
