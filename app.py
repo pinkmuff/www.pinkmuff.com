@@ -41,6 +41,7 @@ logging.basicConfig(filename=_logfile,level=_loglevel,format=_logformat)
 _log = logging.getLogger('pornsite')
 
 _mc = pylibmc.Client(_config['_memcachedServer'], behaviors={"tcp_nodelay": True, "no_block": True})
+_mcpool = pylibmc.ThreadMappedPool(_mc)
 _m = MongoClient(_config['_mongoServer']['host'],_config['_mongoServer']['port'])
 _db = _m[_config['_mongoDb']['name']]
 _links = _db[_config['_mongoDb']['links']]
@@ -101,17 +102,27 @@ def _sanitize(video):
 
 def _cache_set(_key,_value,_timeout):
  if _config['_memcachedEnabled']:
-  _debug("_cache_set(): setting memcached key: " + str(_key) + ", timeout: " + str(_timeout) + ", value: " + str(_value))
-  out = _mc.set(_key,_value,_timeout)
+  if _mcpool != None:
+   with _mcpool.reserve() as mc:
+    _debug("_cache_set(): setting memcached key: " + str(_key) + ", timeout: " + str(_timeout) + ", value: " + str(_value))
+    out = mc.set(_key,_value,_timeout)
+  
+  _mcpool.relinquish()
   return out
  else:
   return True
 
 def _cache_get(_key):
  if _config['_memcachedEnabled']:
-  out = _mc.get(_key)
-  _debug("_cache_get(): getting memcached key: " + str(_key) + ", value: " + str(out))
-  return out
+  if _mcpool != None:
+   with _mcpool.reserve() as mc:
+    out = mc.get(_key)
+    _debug("_cache_get(): getting memcached key: " + str(_key) + ", value: " + str(out))
+   
+   _mcpool.relinquish()
+   return out
+  else:
+   return None
  else:
   return None
 
