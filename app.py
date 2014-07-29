@@ -63,7 +63,7 @@ def _genFilter(_categoryField='',_categoryFilter=''):
  if _isMobile:
   if _categoryField and _categoryFilter:
    _debug("_genFilter(): mobile regex, _categoryField = " + str(_categoryField) + ", _categoryFilter = " + str(_categoryFilter))
-   _body = {"query":{"bool":{"should":[ {"match":{_categoryField:_categoryFilter}}, {"match":{'embedLink':'<video'}} ]}}}
+   _body = {"query":{"bool":{"must":{"term":{_categoryField:_categoryFilter}},"should":{"term":{"embedLink":"<video"}}}}}
   else:
    _debug("_genFilter(): mobile regex, no category")
    _body = {"query":{"match":{'embedLink':'<video'}}}
