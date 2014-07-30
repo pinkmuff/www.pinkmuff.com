@@ -287,11 +287,6 @@ def randomCatPage(category):
  bottle.LocalRequest._vars['_config']['active_category'] = bottle.LocalRequest.c[2]
  bottle.LocalRequest._vars['_config']['pages'] = bottle.LocalRequest.pages
 
- try:
-  bottle.LocalRequest._vars['_config']['footer_popunder'] = bottle.LocalRequest.c[3]
- except:
-  pass
-
  return template(bottle.LocalRequest._vars['_config']['base_template'],dict(out=bottle.LocalRequest.out,_config=bottle.LocalRequest._vars['_config']))
 
 @app.route('/categories/<category>/random')
@@ -336,10 +331,6 @@ def category(category,page=1):
  bottle.LocalRequest._vars['_config']['active_category'] = bottle.LocalRequest.c[2]
  bottle.LocalRequest._vars['_config']['page'] = page
  bottle.LocalRequest._vars['_config']['pages'] = bottle.LocalRequest.pages
- try:
-  bottle.LocalRequest._vars['_config']['footer_popunder'] = bottle.LocalRequest.c[3]
- except:
-  pass
  return template(bottle.LocalRequest._vars['_config']['base_template'],dict(out=bottle.LocalRequest.out,_config=bottle.LocalRequest._vars['_config']))
 
 @app.route('/page/<page>')
