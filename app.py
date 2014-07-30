@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import json
 import math
 import urllib
 import bottle
@@ -8,37 +9,41 @@ import random
 import logging
 import pylibmc
 import datetime
+from copy import deepcopy
 from elasticsearch import Elasticsearch
 from bson.objectid import ObjectId
 from pymongo import MongoClient
 from bottle import template
-from config import _config, _friends, _categories
+from config import _config
 
-def loadConfig(overridePath = ''):
- if not overridePath:
-  _cfdir = str(_docroot) + '/config/'
-  sys.path.append(_cfdir)
+def _debug(_logstring):
+ if _config['_debug']:
+  _log.debug(_logstring)
+
+def loadConfig(path = './conf.d/'):
+ if not os.path.isdir(path):
+  _debug("loadConfig(): path is not a directory: " + str(path))
  else:
-  if not os.path.isdir(overridePath):
-   sys.exit()
-  else:
-   sys.path.append(overridePath)
+  _configs = os.listdir(path)
+  for _f in _configs:
+   _p = path + '/' + _f
+   _debug("loadConfig(): checking: " + str(_p))
+   if os.path.isfile(_p):
+    if ".json" in _p:
+     _fh = open(_p,'r')
+     _fc = _fh.read()
+     _tmp = json.loads(_fc)
+     _overrides[_tmp['vhost']] = _tmp
+     _debug("loadConfig():  loaded vhost: " + str(_tmp['vhost']) + " with values: " + str(_tmp))
 
- from local_config import _local_config, _local_friends, _local_categories
- _config.update(_local_config)
- _friends.update(_local_friends)
- _categories.update(_local_categories)
- _config['_categories'] = _categories
- _config['_links'] = _friends
-
-_docroot = os.environ.get('_DOCROOT')
-loadConfig()
 app = application = bottle.Bottle()
 _loglevel = logging.DEBUG
-_logfile = _docroot + '/' + _config['_appLogFileName']
+_logfile = _config['_logroot'] + '/' + _config['_appLogFileName']
 _logformat = '%(asctime)-15s %(levelname)s %(name)s - %(message)s'
 logging.basicConfig(filename=_logfile,level=_loglevel,format=_logformat)
 _log = logging.getLogger('pornsite')
+_overrides = dict()
+loadConfig(_config['_conf_d'])
 
 _mc = pylibmc.Client(_config['_memcachedServer'], behaviors={"tcp_nodelay": True, "no_block": True})
 _mcpool = pylibmc.ThreadMappedPool(_mc)
@@ -46,6 +51,7 @@ _m = MongoClient(_config['_mongoServer']['host'],_config['_mongoServer']['port']
 _db = _m[_config['_mongoDb']['name']]
 _links = _db[_config['_mongoDb']['links']]
 _es = Elasticsearch()
+_strip = re.compile('([^\s\w]|_)+')
 
 def _detectMobile(_ua):
  if not _ua:
@@ -126,10 +132,6 @@ def _cache_get(_key):
  else:
   return None
 
-def _debug(_logstring):
- if _config['_debug']:
-  _log.debug(_logstring)
-
 @app.error(404)
 def error404(error):
  _debug("error404: " + str(error))
@@ -197,47 +199,23 @@ def generateVideos(_find = {},offset = 1,category = 'none'):
  return metadata,pages
 
 def templateVars():
+ bottle.LocalRequest._vars = dict()
+ bottle.LocalRequest._vars['_config'] = deepcopy(_config)
  _ua = bottle.request.headers.get('User-Agent')
  isMobile = _detectMobile(_ua)
- _vars = dict()
- _vars['_config'] = dict()
- _vars['_config']['_site_title'] = _config['_site_title']
- _vars['_config']['_by_line'] = _config['_by_line']
- _vars['_config']['_staticHost'] = _config['_staticHost']
- _vars['_config']['_twitter'] = _config['_twitter']
- _vars['_config']['_email'] = _config['_email']
- _vars['_config']['_btc_donate'] = _config['_btc_donate']
 
- _vars['_config']['footer_popunder'] = _config['footer_popunder']
+ _hh = bottle.request.headers.get('Host')
 
- if not isMobile:
-  _vars['_config']['main_page_ad'] = _config['main_page_ad']
-  _vars['_config']['video_page_ad'] = _config['video_page_ad']
- else:
-  _vars['_config']['main_page_ad'] = '<br>'
-  _vars['_config']['video_page_ad'] = '<br>'
-  
- _vars['_config']['_links'] = _config['_links']
- _vars['_config']['_categories'] = _config['_categories']
- _vars['_config']['META_KEYWORDS'] = _config['META_KEYWORDS']
- _vars['_config']['META_DESCRIPTION'] = _config['META_DESCRIPTION']
- _vars['_config']['MS_VALIDATE'] = _config['MS_VALIDATE']
- _vars['_config']['YANDEX_VERIFICATION'] = _config['YANDEX_VERIFICATION']
- _vars['_config']['GOOGLE_SITE_VERIFICATION'] = _config['GOOGLE_SITE_VERIFICATION']
- _vars['_config']['_ga_code'] = _config['_ga_code']
- _vars['_config']['_ga_site'] = _config['_ga_site']
- _vars['_config']['page'] = 1
- _vars['_config']['uri_prefix'] = '/'
- _vars['_config']['active_category'] = 'Home'
- _vars['_config']['_site_css'] = _config['_site_css']
- _path = bottle.request.path
- _vars['_config']['_path'] = _path
- _vars['_config']['marquee'] = _config['marquee']
- _vars['_config']['text_color'] = _config['text_color']
- _vars['_config']['search_placeholder'] = _config['search_placeholder']
+ if _hh in _overrides:
+  _debug("templateVars():  found override for host header: " + str(_hh))
+  bottle.LocalRequest._vars['_config'].update(_overrides[_hh])
 
- _vars['_config']['adbar'] = _config['main_page_ad']
- return _vars
+ bottle.LocalRequest._vars['_config']['_path'] = bottle.request.path
+ bottle.LocalRequest._vars['_config']['active_category'] = 'Home'
+ bottle.LocalRequest._vars['_config']['uri_prefix'] = 1
+ bottle.LocalRequest._vars['_config']['page'] = 1
+ bottle.LocalRequest._vars['_config']['adbar'] = _config['main_page_ad']
+ return bottle.LocalRequest._vars
 
 @app.route('/about')
 def aboutMissingSlash():
@@ -247,8 +225,8 @@ def aboutMissingSlash():
 @app.route('/about/')
 def about():
  _debug("about():  displaying about info")
- _vars = templateVars()
- return template(_config['about_template'],dict(_config=_vars['_config']))
+ bottle.LocalRequest._vars = templateVars()
+ return template(bottle.LocalRequest._vars['_config']['about_template'],dict(_config=bottle.LocalRequest._vars['_config']))
 
 @app.route('/video/<videoid>')
 @app.route('/video/<videoid>/')
@@ -256,76 +234,73 @@ def about():
 def videoMissingSlash(videoid,title=''):
  _debug("videoMissingSlash(): videoid = " + str(videoid))
  _debug(type(videoid))
- out = _links.find_one({'_id': ObjectId(videoid)})
- _debug("videoMissingSlash(): mongo find_one = " + str(out))
- if not out:
+ bottle.LocalRequest.out = _links.find_one({'_id': ObjectId(videoid)})
+ _debug("videoMissingSlash(): mongo find_one = " + str(bottle.LocalRequest.out))
+ if not bottle.LocalRequest.out:
   bottle.redirect('/',code=301)
 
- out = _sanitize(out)
- uri = '/video/' + str(videoid) + '/' + str(out['uri'])
- _debug("videoMissingSlash(): redirecting to: " + str(uri))
+ bottle.LocalRequest.out = _sanitize(bottle.LocalRequest.out)
+ bottle.LocalRequest.uri = '/video/' + str(videoid) + '/' + str(bottle.LocalRequest.out['uri'])
+ _debug("videoMissingSlash(): redirecting to: " + str(bottle.LocalRequest.uri))
  bottle.redirect(uri,code=301)
 
 @app.route('/video/<videoid>/<title>/')
 def showvideo(videoid,title):
  _debug("showvideo(): videoid = " + str(videoid) + ".")
- videoid = unicode(videoid)
- _debug(type(videoid))
- _debug(videoid)
- out = _links.find_one({'_id': ObjectId(videoid)})
- if not out:
-  _debug("showvideo(): mongo find_one out = " + str(out))
+ bottle.LocalRequest.out = _links.find_one({'_id': ObjectId(videoid)})
+ if not bottle.LocalRequest.out:
+  _debug("showvideo(): mongo find_one out = " + str(bottle.LocalRequest.out))
   
   bottle.redirect('/',code=301)
  
- if not '_viewcount' in out:
-  out['_viewcount'] = 1
+ if not '_viewcount' in bottle.LocalRequest.out:
+  bottle.LocalRequest.out['_viewcount'] = 1
  else:
-  out['_viewcount'] += 1
+  bottle.LocalRequest.out['_viewcount'] += 1
 
- _links.save(out)
+ _links.save(bottle.LocalRequest.out)
 
- out = _sanitize(out)
- _vars = templateVars()
- _vars['_config']['adbar'] = _config['video_page_ad']
+ bottle.LocalRequest.out = _sanitize(bottle.LocalRequest.out)
+ bottle.LocalRequest._vars = templateVars()
+ bottle.LocalRequest._vars['_config']['adbar'] = _config['video_page_ad']
  
- return template(_config['video_template'],dict(out=out,_config=_vars['_config']))
+ return template(bottle.LocalRequest._vars['_config']['video_template'],dict(out=bottle.LocalRequest.out,_config=bottle.LocalRequest._vars['_config']))
 
 @app.route('/categories/<category>/random/')
 def randomCatPage(category):
- _pages_key = _config['_memcachedPrefix'] + '_pages_' + str(category)
+ bottle.LocalRequest._pages_key = _config['_memcachedPrefix'] + '_pages_' + str(category)
 
  try:
-  c = _config["_categories"][category]
-  _debug("randomCatPage(): c = " + str(c))
+  bottle.LocalRequest.c = _config["_categories"][category]
+  _debug("randomCatPage(): c = " + str(bottle.LocalRequest.c))
  except:
   _debug("randomCatPage(): _config['_categories'][category] for " + str(category) + " failed.")
   bottle.redirect('/',code=301)
 
  _debug("randomCatPage(): category = " + str(category))
- _filter = _genFilter(c[0],c[1])
- out,pages = generateVideos(_filter,"rand",c[1])
- _debug("randomCatPage(): out = " + str(out))
+ bottle.LocalRequest._filter = _genFilter(bottle.LocalRequest.c[0],bottle.LocalRequest.c[1])
+ bottle.LocalRequest.out,bottle.LocalRequest.pages = generateVideos(bottle.LocalRequest._filter,"rand",bottle.LocalRequest.c[1])
+ _debug("randomCatPage(): out = " + str(bottle.LocalRequest.out))
 
- _vars = templateVars()
- _vars['_config']['uri_prefix'] = '/categories/' + str(category) + '/'
- _vars['_config']['active_category'] = c[2]
- _vars['_config']['pages'] = pages
+ bottle.LocalRequest._vars = templateVars()
+ bottle.LocalRequest._vars['_config']['uri_prefix'] = '/categories/' + str(category) + '/'
+ bottle.LocalRequest._vars['_config']['active_category'] = bottle.LocalRequest.c[2]
+ bottle.LocalRequest._vars['_config']['pages'] = bottle.LocalRequest.pages
 
  try:
-  _vars['_config']['footer_popunder'] = c[3]
+  bottle.LocalRequest._vars['_config']['footer_popunder'] = bottle.LocalRequest.c[3]
  except:
   pass
 
- return template(_config['base_template'],dict(out=out,_config=_vars['_config']))
+ return template(bottle.LocalRequest._vars['_config']['base_template'],dict(out=bottle.LocalRequest.out,_config=bottle.LocalRequest._vars['_config']))
 
 @app.route('/categories/<category>/random')
 @app.route('/categories/<category>')
 def categoryMissingSlash(category):
  if category in _config['_categories']:
-  uri = bottle.request.path + '/'
-  _debug("categoryMissingSlash(): redirecting to: " + str(uri))
-  bottle.redirect(uri,code=301)
+  bottle.LocalRequest.uri = bottle.request.path + '/'
+  _debug("categoryMissingSlash(): redirecting to: " + str(bottle.LocalRequest.uri))
+  bottle.redirect(bottle.LocalRequest.uri,code=301)
  else:
   _debug("categoryMissingSlash(): _config['_categories'][category] for " + str(category) + " failed.")
   bottle.redirect('/',code=301)
@@ -340,32 +315,32 @@ def category(category,page=1):
   bottle.redirect('/',code=301)
 
  try:
-  c = _config["_categories"][category]
-  _debug("category(): c = " + str(c))
+  bottle.LocalRequest.c = _config["_categories"][category]
+  _debug("category(): c = " + str(bottle.LocalRequest.c))
  except:
   _debug("category(): _config['_categories'][category] for " + str(category) + " failed.")
   bottle.redirect('/',code=301)
 
  if page < _config['_maxPage']:
   _debug("category(): category = " + str(category))
-  _filter = _genFilter(c[0],c[1])
-  out,pages = generateVideos(_filter,page,c[1])
+  bottle.LocalRequest._filter = _genFilter(bottle.LocalRequest.c[0],bottle.LocalRequest.c[1])
+  bottle.LocalRequest.out,bottle.LocalRequest.pages = generateVideos(bottle.LocalRequest._filter,page,bottle.LocalRequest.c[1])
 
-  _debug("category(): out = " + str(out))
+  _debug("category(): out = " + str(bottle.LocalRequest.out))
  else:
   _debug("category(): redirecting to /, out of bounds page: " + str(page))
   bottle.redirect('/',code=301)
 
- _vars = templateVars()
- _vars['_config']['uri_prefix'] = '/categories/' + str(category) + '/'
- _vars['_config']['active_category'] = c[2]
- _vars['_config']['page'] = page
- _vars['_config']['pages'] = pages
+ bottle.LocalRequest._vars = templateVars()
+ bottle.LocalRequest._vars['_config']['uri_prefix'] = '/categories/' + str(category) + '/'
+ bottle.LocalRequest._vars['_config']['active_category'] = bottle.LocalRequest.c[2]
+ bottle.LocalRequest._vars['_config']['page'] = page
+ bottle.LocalRequest._vars['_config']['pages'] = bottle.LocalRequest.pages
  try:
-  _vars['_config']['footer_popunder'] = c[3]
+  bottle.LocalRequest._vars['_config']['footer_popunder'] = bottle.LocalRequest.c[3]
  except:
   pass
- return template(_config['base_template'],dict(out=out,_config=_vars['_config']))
+ return template(bottle.LocalRequest._vars['_config']['base_template'],dict(out=bottle.LocalRequest.out,_config=bottle.LocalRequest._vars['_config']))
 
 @app.route('/page/<page>')
 def pageMissingSlash(page):
@@ -376,8 +351,8 @@ def pageMissingSlash(page):
   bottle.redirect('/',code=301)
 
  if page < _config['_maxPage']:
-  uri = '/page/' + str(page) + '/'
-  bottle.redirect(uri,code=301)
+  bottle.LocalRequest.uri = '/page/' + str(page) + '/'
+  bottle.redirect(bottle.LocalRequest.uri,code=301)
  else:
   _debug("pageMissingSlash(): redirecting to /, out of bounds page: " + str(page))
   bottle.redirect('/',code=301)
@@ -389,12 +364,12 @@ def randomMissingSlash():
 
 @app.route('/random/')
 def randomPage():
- out,pages = generateVideos({},"rand")
+ bottle.LocalRequest.out,bottle.LocalRequest.pages = generateVideos({},"rand")
   
- _vars = templateVars()
- _vars['_config']['uri_prefix'] = '/'
- _vars['_config']['pages'] = pages
- return template(_config['base_template'],dict(out=out,_config=_vars['_config']))
+ bottle.LocalRequest._vars = templateVars()
+ bottle.LocalRequest._vars['_config']['uri_prefix'] = '/'
+ bottle.LocalRequest._vars['_config']['pages'] = bottle.LocalRequest.pages
+ return template(bottle.LocalRequest._vars['_config']['base_template'],dict(out=bottle.LocalRequest.out,_config=bottle.LocalRequest._vars['_config']))
 
 @app.route('/search/<term>')
 @app.route('/search/')
@@ -411,24 +386,23 @@ def search(term,page=1):
   _debug("search(): page is not an integer")
   bottle.redirect('/',code=301)
 
- _strip = re.compile('([^\s\w]|_)+')
- term = _strip.sub('',term)
+ bottle.LocalRequest.term = _strip.sub('',term)
 
  if page < _config['_maxPage']:
-  _filter = _genFilter("tags",term)
-  _term = term.replace(' ','')
-  _cat = "search_" + str(_term) 
-  out,pages = generateVideos(_filter,page,_cat)
+  bottle.LocalRequest._filter = _genFilter("tags",bottle.LocalRequest.term)
+  bottle.LocalRequest._term = bottle.LocalRequest.term.replace(' ','')
+  bottle.LocalRequest._cat = "search_" + str(bottle.LocalRequest._term) 
+  bottle.LocalRequest.out,bottle.LocalRequest.pages = generateVideos(bottle.LocalRequest._filter,page,bottle.LocalRequest._cat)
  else:
   _debug("search(): redirecting to /, out of bounds page: " + str(page))
   bottle.redirect('/',code=301)
 
- _vars = templateVars()
- _vars['_config']['uri_prefix'] = '/search/' + str(term) + '/'
- _vars['_config']['page'] = page
- _vars['_config']['pages'] = pages
- _vars['_config']['search_placeholder'] = term
- return template(_config['base_template'],dict(out=out,_config=_vars['_config']))
+ bottle.LocalRequest._vars = templateVars()
+ bottle.LocalRequest._vars['_config']['uri_prefix'] = '/search/' + str(bottle.LocalRequest.term) + '/'
+ bottle.LocalRequest._vars['_config']['page'] = page
+ bottle.LocalRequest._vars['_config']['pages'] = bottle.LocalRequest.pages
+ bottle.LocalRequest._vars['_config']['search_placeholder'] = bottle.LocalRequest.term
+ return template(bottle.LocalRequest._vars['_config']['base_template'],dict(out=bottle.LocalRequest.out,_config=bottle.LocalRequest._vars['_config']))
 
 
 @app.route('/page/<page>/')
@@ -441,17 +415,17 @@ def home(page=1):
   bottle.redirect('/',code=301)
 
  if page < _config['_maxPage']:
-  _filter = _genFilter()
-  out,pages = generateVideos(_filter,page,'none')
+  bottle.LocalRequest._filter = _genFilter()
+  bottle.LocalRequest.out,bottle.LocalRequest.pages = generateVideos(bottle.LocalRequest._filter,page,'none')
  else:
   _debug("home(): redirecting to /, out of bounds page: " + str(page))
   bottle.redirect('/',code=301)
 
- _vars = templateVars()
- _vars['_config']['uri_prefix'] = '/'
- _vars['_config']['page'] = page
- _vars['_config']['pages'] = pages
- return template(_config['base_template'],dict(out=out,_config=_vars['_config']))
+ bottle.LocalRequest._vars = templateVars()
+ bottle.LocalRequest._vars['_config']['uri_prefix'] = '/'
+ bottle.LocalRequest._vars['_config']['page'] = page
+ bottle.LocalRequest._vars['_config']['pages'] = bottle.LocalRequest.pages
+ return template(bottle.LocalRequest._vars['_config']['base_template'],dict(out=bottle.LocalRequest.out,_config=bottle.LocalRequest._vars['_config']))
 
 if __name__ == '__main__':
   _debug("-- Starting up from CLI")

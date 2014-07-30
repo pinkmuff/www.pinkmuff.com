@@ -11,23 +11,25 @@ _config = {
  "_mongoDb": {"name": "porn", "links": "links"},
  "_mongoOffset": 0,
  "_numVidsTiled": 60,
- "_appLogFileName": "logs/app/app.log",
+ "_appLogFileName": "app.log",
  "_site_title": "##FQDN##",
  "_site_css": "main",
- "_staticHost": "static.##FQDN##",
+ "_conf_d": "##PATH_TO_CONF_D##",
  "_standaloneIP": "0.0.0.0",
  "_standalonePort": 65080,
  "_debug": 0,
  "_error404": ("Location","/"),
+ "_staticHost": "static.##FQDN##",
  "_twitter": "",
  "_email": "",
  "_btc_donate": "14rXeD3SFeopjvuHi7kU4gbnbewM6k1iE7",
  "_mobile_ua": ["iPhone","iPad","Mobile Safari","Android","DoCoMo","SAMSUNG-SGH","Windows Phone"],
- "search_placeholder": "Anal",
+ "_logroot": "##PATH_TO_LOG_DIR##",
  "cache_expires": "21600",
  "base_template": "base.tpl",
  "video_template": "video.tpl",
  "about_template": "about.tpl",
+ "search_placeholder": "Anal",
  "main_page_ad": '',
  "video_page_ad": '',
  "footer_popunder": '',
@@ -37,19 +39,15 @@ _config = {
  "MS_VALIDATE": "",
  "GOOGLE_SITE_VERIFICATION": "",
  "YANDEX_VERIFICATION": "",
- "_byline": "",
  "_ga_code": "",
  "_ga_site": "",
-}
-
-_friends = {
+ "_links": {
   "Pink Muff": "http://www.pinkmuff.com/",
-  "Digital Ocean Hosting": "https://www.linode.com/?r=d841da92f44278f5afe5f2bf910b3be87c33a8c1"
-}
-
-_categories = {
-  "anal": ["tags", "anal", "Anal", '##ANAL SPECIFIC POPUNDER##'],
-  "milf": ["tags", "milf", "MILF", '##MILF SPECIFIC POPUNDER##'],
+  "Linode": "https://www.linode.com/?r=d841da92f44278f5afe5f2bf910b3be87c33a8c1"
+ },
+ "_categories": {
+  "anal": ["tags", "anal", "Anal"],
+  "milf": ["tags", "milf", "MILF"],
   "teen": ["tags", "teen", "Teen"],
   "gay":  ["tags", "gay", "Gay"],
   "asian": ["tags", "asian", "Asian"],

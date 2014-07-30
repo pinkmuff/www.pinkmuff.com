@@ -1,4 +1,4 @@
-% include('_header.tpl', title_extra=_config['_by_line'])
+% include('_header.tpl', title_extra=_config['META_KEYWORDS'])
 % include('navbar.tpl')
 <div class="jumbotron">
 <div class="container">
